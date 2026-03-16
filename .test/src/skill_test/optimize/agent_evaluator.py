@@ -315,7 +315,10 @@ class AgentEvaluator:
         guidelines_str = (
             "\n".join(f"- {g}" for g in guidelines) if guidelines else "None specified"
         )
-        expectations_text = f"Expected facts:\n{facts_str}\n\nExpected patterns:\n{patterns_str}\n\nGuidelines:\n{guidelines_str}"
+        expectations_text = (
+            f"Expected facts:\n{facts_str}\n\nExpected patterns:\n{patterns_str}"
+            f"\n\nGuidelines:\n{guidelines_str}"
+        )
         expectations_dict = {"criteria": expectations_text}
 
         baseline_key = _prompt_hash(prompt)
