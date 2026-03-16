@@ -42,9 +42,7 @@ from mlflow.genai.judges import make_judge
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_JUDGE_LM = os.environ.get(
-    "GEPA_JUDGE_LM", "databricks:/databricks-claude-sonnet-4-6"
-)
+DEFAULT_JUDGE_LM = os.environ.get("GEPA_JUDGE_LM", "databricks:/databricks-claude-sonnet-4-6")
 
 # ---------------------------------------------------------------------------
 # Fallback model chain for rate limit errors
@@ -126,9 +124,7 @@ def _to_litellm_model(model: str) -> tuple[str, str | None, str | None]:
     if gateway and model.startswith("databricks/"):
         # Route through AI Gateway as OpenAI-compatible endpoint
         endpoint_name = model.split("/", 1)[1]
-        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get(
-            "DATABRICKS_API_KEY", ""
-        )
+        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get("DATABRICKS_API_KEY", "")
         return f"openai/{endpoint_name}", gateway, api_key or None
     return model, None, None
 
@@ -156,9 +152,7 @@ def _judge_inference_params() -> dict[str, Any] | None:
     """Build inference_params for make_judge if AI Gateway is configured."""
     gateway = _get_gateway_base_url()
     if gateway:
-        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get(
-            "DATABRICKS_API_KEY", ""
-        )
+        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get("DATABRICKS_API_KEY", "")
         params: dict[str, Any] = {"base_url": gateway}
         if api_key:
             params["api_key"] = api_key
@@ -180,9 +174,7 @@ def _to_judge_model_and_params(model: str) -> tuple[str, dict[str, Any] | None]:
             endpoint_name = model.split(":/", 1)[1]
         else:
             endpoint_name = model.split("/", 1)[1]
-        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get(
-            "DATABRICKS_API_KEY", ""
-        )
+        api_key = os.environ.get("DATABRICKS_TOKEN") or os.environ.get("DATABRICKS_API_KEY", "")
         params: dict[str, Any] = {"base_url": gateway}
         if api_key:
             params["api_key"] = api_key
@@ -369,20 +361,12 @@ def create_correctness_judge(
     instructions = _CORRECTNESS_INSTRUCTIONS
     if skill_guidelines:
         # Filter for correctness-related guidelines
-        filtered = [
-            g
-            for g in skill_guidelines
-            if any(kw in g.lower() for kw in _CORRECTNESS_KEYWORDS)
-        ]
+        filtered = [g for g in skill_guidelines if any(kw in g.lower() for kw in _CORRECTNESS_KEYWORDS)]
         if filtered:
             principles = "\n".join(f"- {g}" for g in filtered)
-            instructions += (
-                f"\n\n## Domain-Specific Correctness Principles\n{principles}\n"
-            )
+            instructions += f"\n\n## Domain-Specific Correctness Principles\n{principles}\n"
 
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="skill_correctness",
         model=model_uri,
@@ -442,9 +426,7 @@ def create_completeness_judge(
     Args:
         judge_model: LLM model for the judge.
     """
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="skill_completeness",
         model=model_uri,
@@ -514,9 +496,7 @@ def create_guideline_adherence_judge(
         principles = "\n".join(f"- {g}" for g in skill_guidelines)
         instructions += f"\n\n## Required Guidelines\n{principles}\n"
 
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="skill_guideline_adherence",
         model=model_uri,
@@ -569,9 +549,7 @@ def create_regression_judge(judge_model: str | None = None) -> Any:
         judge_model: LLM model for the judge. Defaults to GEPA_JUDGE_LM env
             or databricks/databricks-claude-sonnet-4-6.
     """
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="skill_regression",
         model=model_uri,
@@ -630,9 +608,7 @@ def run_judge_safe(
             fb = future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
             logger.warning("Judge '%s' timed out after %ds", name, timeout)
-            return JudgeFeedback(
-                value=0.0, rationale=f"Judge timed out after {timeout}s", name=name
-            )
+            return JudgeFeedback(value=0.0, rationale=f"Judge timed out after {timeout}s", name=name)
         finally:
             # shutdown(wait=False) so a still-running judge thread doesn't block
             pool.shutdown(wait=False)
@@ -643,9 +619,7 @@ def run_judge_safe(
         )
     except concurrent.futures.TimeoutError:
         # Already handled above, but keep for safety
-        return JudgeFeedback(
-            value=0.0, rationale=f"Judge timed out after {timeout}s", name=name
-        )
+        return JudgeFeedback(value=0.0, rationale=f"Judge timed out after {timeout}s", name=name)
     except Exception as e:
         pool.shutdown(wait=False)
         if not _is_rate_limit_error(e):
@@ -680,9 +654,7 @@ def run_judge_safe(
                 continue
             finally:
                 fb_pool.shutdown(wait=False)
-            logger.info(
-                "Judge '%s' succeeded with fallback model '%s'", name, fallback_model
-            )
+            logger.info("Judge '%s' succeeded with fallback model '%s'", name, fallback_model)
             return JudgeFeedback(
                 value=fb.value,
                 rationale=fb.rationale or "",
@@ -690,9 +662,7 @@ def run_judge_safe(
             )
         except Exception as fallback_err:
             if _is_rate_limit_error(fallback_err):
-                logger.warning(
-                    "Fallback '%s' also rate limited, trying next", fallback_model
-                )
+                logger.warning("Fallback '%s' also rate limited, trying next", fallback_model)
                 continue
             logger.warning("Fallback '%s' failed: %s", fallback_model, fallback_err)
             continue
@@ -838,25 +808,15 @@ def create_trace_correctness_judge(
             CLI flag, ``GEPA_JUDGE_LM`` env var, or default.
     """
     criteria_block = eval_criteria.to_prompt(judge_model) if eval_criteria else ""
-    instructions = (
-        _TRACE_CORRECTNESS_INSTRUCTIONS_PREFIX
-        + criteria_block
-        + _TRACE_CORRECTNESS_INSTRUCTIONS_BODY
-    )
+    instructions = _TRACE_CORRECTNESS_INSTRUCTIONS_PREFIX + criteria_block + _TRACE_CORRECTNESS_INSTRUCTIONS_BODY
 
     if skill_guidelines:
-        filtered = [
-            g
-            for g in skill_guidelines
-            if any(kw in g.lower() for kw in _CORRECTNESS_KEYWORDS)
-        ]
+        filtered = [g for g in skill_guidelines if any(kw in g.lower() for kw in _CORRECTNESS_KEYWORDS)]
         if filtered:
             principles = "\n".join(f"- {g}" for g in filtered)
             instructions += f"\n\n## Domain Correctness Principles\n{principles}\n"
 
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="trace_correctness",
         model=model_uri,
@@ -879,15 +839,9 @@ def create_trace_completeness_judge(
         judge_model: LLM model for the judge.
     """
     criteria_block = eval_criteria.to_prompt(judge_model) if eval_criteria else ""
-    instructions = (
-        _TRACE_COMPLETENESS_INSTRUCTIONS_PREFIX
-        + criteria_block
-        + _TRACE_COMPLETENESS_INSTRUCTIONS_BODY
-    )
+    instructions = _TRACE_COMPLETENESS_INSTRUCTIONS_PREFIX + criteria_block + _TRACE_COMPLETENESS_INSTRUCTIONS_BODY
 
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="trace_completeness",
         model=model_uri,
@@ -914,19 +868,13 @@ def create_trace_guideline_judge(
         judge_model: LLM model for the judge.
     """
     criteria_block = eval_criteria.to_prompt(judge_model) if eval_criteria else ""
-    instructions = (
-        _TRACE_GUIDELINE_INSTRUCTIONS_PREFIX
-        + criteria_block
-        + _TRACE_GUIDELINE_INSTRUCTIONS_BODY
-    )
+    instructions = _TRACE_GUIDELINE_INSTRUCTIONS_PREFIX + criteria_block + _TRACE_GUIDELINE_INSTRUCTIONS_BODY
 
     if skill_guidelines:
         principles = "\n".join(f"- {g}" for g in skill_guidelines)
         instructions += f"\n\n## Required Guidelines\n{principles}\n"
 
-    model_uri, inference_params = _to_judge_model_and_params(
-        judge_model or DEFAULT_JUDGE_LM
-    )
+    model_uri, inference_params = _to_judge_model_and_params(judge_model or DEFAULT_JUDGE_LM)
     return make_judge(
         name="trace_guideline_adherence",
         model=model_uri,
